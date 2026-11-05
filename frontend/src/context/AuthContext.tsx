@@ -1,14 +1,35 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { authApi } from "../api";
+import { authApi, demoApi } from "../api";
 import { refreshSession, setAuthFailureHandler, tokenStore } from "../api/client";
-import type { User } from "../types";
+import type { Role, User } from "../types";
+
+const DEMO_FLAG_KEY = "resolvex:isDemo";
+
+function readDemoFlag(): boolean {
+  try {
+    return sessionStorage.getItem(DEMO_FLAG_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function writeDemoFlag(active: boolean) {
+  try {
+    if (active) sessionStorage.setItem(DEMO_FLAG_KEY, "true");
+    else sessionStorage.removeItem(DEMO_FLAG_KEY);
+  } catch {}
+}
 
 interface AuthState {
   user: User | null;
   loading: boolean; // true while we check whether a session cookie exists
+  isDemo: boolean;
   login: (organizationSlug: string, email: string, password: string) => Promise<User>;
   registerOrg: (body: { organizationName: string; organizationSlug: string; name: string; email: string; password: string }) => Promise<User>;
   registerCustomer: (body: { organizationSlug: string; name: string; email: string; password: string }) => Promise<User>;
+  demoLogin: (role: Role) => Promise<User>;
+  demoReset: () => Promise<void>;
+  exitDemo: () => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: User) => void;
 }
@@ -23,6 +44,7 @@ function rememberOrg(slug: string) {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(readDemoFlag);
 
   // On page load, try to restore the session from the httpOnly refresh cookie.
   useEffect(() => {
@@ -32,30 +54,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(session?.user ?? null);
       setLoading(false);
     });
-    setAuthFailureHandler(() => { tokenStore.set(null); setUser(null); });
-    return () => { cancelled = true; setAuthFailureHandler(null); };
+    setAuthFailureHandler(() => {
+      tokenStore.set(null);
+      setUser(null);
+      writeDemoFlag(false);
+      setIsDemo(false);
+    });
+    return () => {
+      cancelled = true;
+      setAuthFailureHandler(null);
+    };
   }, []);
 
-  const accept = useCallback((data: { user: User; accessToken: string }, slug: string) => {
+  const accept = useCallback((data: { user: User; accessToken: string }, slug: string, demo = false) => {
     tokenStore.set(data.accessToken);
     rememberOrg(slug);
+    writeDemoFlag(demo);
+    setIsDemo(demo);
     setUser(data.user);
     return data.user;
   }, []);
+
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout();
+    } finally {
+      tokenStore.set(null);
+      setUser(null);
+      writeDemoFlag(false);
+      setIsDemo(false);
+    }
+  }, []);
+
+  const demoLogin = useCallback(async (role: Role) => {
+    const data = await demoApi.login(role);
+    return accept(data, "demo-org", true);
+  }, [accept]);
+
+  const demoReset = useCallback(async () => {
+    await demoApi.reset();
+  }, []);
+
+  const exitDemo = useCallback(async () => {
+    await logout();
+  }, [logout]);
 
   const value = useMemo<AuthState>(
     () => ({
       user,
       loading,
-      login: async (slug, email, password) => accept(await authApi.login({ organizationSlug: slug, email, password }), slug),
-      registerOrg: async (body) => accept(await authApi.registerOrg(body), body.organizationSlug),
-      registerCustomer: async (body) => accept(await authApi.registerCustomer(body), body.organizationSlug),
-      logout: async () => {
-        try { await authApi.logout(); } finally { tokenStore.set(null); setUser(null); }
-      },
+      isDemo,
+      login: async (slug, email, password) => accept(await authApi.login({ organizationSlug: slug, email, password }), slug, false),
+      registerOrg: async (body) => accept(await authApi.registerOrg(body), body.organizationSlug, false),
+      registerCustomer: async (body) => accept(await authApi.registerCustomer(body), body.organizationSlug, false),
+      demoLogin,
+      demoReset,
+      exitDemo,
+      logout,
       setUser,
     }),
-    [user, loading, accept]
+    [user, loading, isDemo, accept, demoLogin, demoReset, exitDemo, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

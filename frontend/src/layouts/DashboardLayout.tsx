@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useRealtime } from "../context/RealtimeContext";
+import { DemoBanner } from "../components/DemoBanner";
 import { cn, humanize } from "../utils/format";
 import type { Role } from "../types";
 
@@ -99,6 +100,7 @@ export function DashboardLayout() {
       )}
 
       <div className="min-w-0 flex-1">
+        <DemoBanner />
         <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur lg:hidden">
           <button aria-label="Open menu" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100" onClick={() => setOpen(true)}>
             <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16" /></svg>

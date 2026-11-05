@@ -5,6 +5,7 @@ import { getErrorMessage } from "../../api/client";
 import { Button, Field, Input } from "../../components/ui";
 import { LAST_ORG_KEY, useAuth } from "../../context/AuthContext";
 import { AuthLayout } from "../../layouts/AuthLayout";
+import { DemoLauncherModal } from "../../components/DemoLauncherModal";
 
 interface Form { organizationSlug: string; email: string; password: string }
 
@@ -19,6 +20,7 @@ export default function LoginPage() {
   const { slug } = useParams();
   const [params] = useSearchParams();
   const [error, setError] = useState("");
+  const [demoOpen, setDemoOpen] = useState(false);
   const initialOrg = slug ?? params.get("org") ?? savedOrg();
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({ defaultValues: { organizationSlug: initialOrg } });
 
@@ -56,7 +58,20 @@ export default function LoginPage() {
         </Field>
         <div className="text-right text-sm"><Link className="text-brand-600 hover:underline" to="/forgot-password">Forgot password?</Link></div>
         <Button type="submit" className="w-full" loading={isSubmitting}>Sign in</Button>
+
+        {/* Demo shortcut on login page */}
+        <div className="mt-4 rounded-lg border border-brand-100 bg-brand-50/60 p-3 text-center">
+          <p className="text-xs text-slate-600 mb-1.5">Recruiter or interviewer exploring ResolveX?</p>
+          <button
+            type="button"
+            onClick={() => setDemoOpen(true)}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-700 hover:text-brand-900 underline transition"
+          >
+            <span>▶</span> Explore Live Demo (no account needed)
+          </button>
+        </div>
       </form>
+      <DemoLauncherModal isOpen={demoOpen} onClose={() => setDemoOpen(false)} />
     </AuthLayout>
   );
 }

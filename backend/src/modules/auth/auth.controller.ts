@@ -12,7 +12,7 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 // secure + sameSite "none" in production because Vercel (frontend) and Render (backend)
 // are different sites; browsers require "secure" whenever sameSite is "none".
 // path: the cookie is only sent to the auth routes, not to every API call.
-function cookieOptions(): CookieOptions {
+export function cookieOptions(): CookieOptions {
   return {
     httpOnly: true,
     secure: isProduction,

@@ -28,14 +28,14 @@ export interface AuthResult {
   refreshToken: string; // goes into the httpOnly cookie, never into the JSON body
 }
 
-interface TokenSubject {
+export interface TokenSubject {
   id: string;
   organizationId: string;
   role: Role;
 }
 
 // Creates an access token + a refresh token and records the refresh token's hash.
-async function issueTokens(subject: TokenSubject, family: string = crypto.randomUUID()) {
+export async function issueTokens(subject: TokenSubject, family: string = crypto.randomUUID()) {
   const accessToken = signAccessToken({
     sub: subject.id,
     orgId: subject.organizationId,

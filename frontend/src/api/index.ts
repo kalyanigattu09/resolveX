@@ -94,6 +94,11 @@ export const feedbackApi = {
   list: (page = 1) => paged<FeedbackEntry>("/feedback", { page, limit: 10 }),
 };
 
+export const demoApi = {
+  login: (role: Role) => api.post("/demo/login", { role }).then((r) => r.data.data as { user: User; accessToken: string }),
+  reset: () => api.post("/demo/reset").then((r) => r.data.message as string),
+};
+
 export const notificationApi = {
   list: (params?: { page?: number; limit?: number; unread?: boolean }) => paged<AppNotification>("/notifications", params),
   read: (id: string) => api.patch(`/notifications/${id}/read`).then(() => undefined),

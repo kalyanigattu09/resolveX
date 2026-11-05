@@ -13,6 +13,7 @@ import auditRoutes from "./modules/audit/audit.routes";
 import authRoutes from "./modules/auth/auth.routes";
 import complaintRoutes from "./modules/complaints/complaint.routes";
 import feedbackRoutes from "./modules/feedback/feedback.routes";
+import demoRoutes from "./modules/demo/demo.routes";
 import notificationRoutes from "./modules/notifications/notification.routes";
 import slaRoutes from "./modules/sla/sla.routes";
 import departmentRoutes from "./modules/departments/department.routes";
@@ -61,6 +62,7 @@ export function createApp(): Express {
   app.use("/api/v1/analytics", analyticsRoutes);
   app.use("/api/v1/audit-logs", auditRoutes);
   app.use("/api/v1/feedback", feedbackRoutes);
+  app.use("/api/v1/demo", demoRoutes);
   // More feature routers are mounted here in later phases.
 
   app.use(notFoundHandler);
