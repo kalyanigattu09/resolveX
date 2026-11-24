@@ -21,6 +21,36 @@ import organizationRoutes from "./modules/organizations/organization.routes";
 import userRoutes from "./modules/users/user.routes";
 import { sendSuccess } from "./utils/apiResponse";
 
+// Helper to validate incoming CORS origins flexibly (supports comma-separated origins,
+// automatic trailing slash removal, Vercel preview domains, and localhost).
+export function isAllowedOrigin(origin?: string): boolean {
+  if (!origin) return true; // allow non-browser requests (mobile, curl, health check)
+
+  const allowed = env.CLIENT_URL.split(",")
+    .map((u) => u.trim().replace(/\/+$/, "").toLowerCase())
+    .filter(Boolean);
+
+  const normalized = origin.trim().replace(/\/+$/, "").toLowerCase();
+
+  // Direct match or wildcard
+  if (allowed.includes(normalized) || allowed.includes("*")) return true;
+
+  // Always permit localhost during development or when explicitly in allowed list
+  if (!isProduction || allowed.some((u) => u.includes("localhost"))) {
+    if (/^https?:\/\/localhost(:\d+)?$/.test(normalized)) return true;
+  }
+
+  // Permit any Vercel domain if a vercel domain is listed in CLIENT_URL
+  if (allowed.some((u) => u.includes("vercel.app"))) {
+    try {
+      const parsed = new URL(normalized);
+      if (parsed.hostname.endsWith(".vercel.app")) return true;
+    } catch {}
+  }
+
+  return false;
+}
+
 // app.ts builds the Express app but does NOT start listening.
 // server.ts starts it. This split lets tests use the app without opening a port.
 export function createApp(): Express {
@@ -32,7 +62,13 @@ export function createApp(): Express {
   app.use(helmet());
   app.use(
     cors({
-      origin: env.CLIENT_URL, // only our frontend may call the API from a browser
+      origin: (origin, callback) => {
+        if (isAllowedOrigin(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error(`CORS error: Origin ${origin} not allowed`));
+        }
+      },
       credentials: true, // allow the refresh-token cookie (Phase 3)
     })
   );

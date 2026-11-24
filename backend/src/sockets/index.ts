@@ -1,6 +1,7 @@
 import http from "http";
 import { Server } from "socket.io";
 import { env } from "../config/env";
+import { isAllowedOrigin } from "../app";
 import { User } from "../models/User";
 import { logger } from "../utils/logger";
 import { verifyAccessToken } from "../utils/tokens";
@@ -14,7 +15,12 @@ export { emitToUser } from "./io";
 //  3. There is no "join room" event, so a client can never subscribe to someone else's channel.
 export function initSocket(server: http.Server): Server {
   const io = new Server(server, {
-    cors: { origin: env.CLIENT_URL, credentials: true },
+    cors: {
+      origin: (origin, callback) => {
+        callback(null, isAllowedOrigin(origin));
+      },
+      credentials: true,
+    },
   });
 
   io.use(async (socket, next) => {

@@ -3,6 +3,7 @@ import { createApp } from "./app";
 import { connectDB, disconnectDB } from "./config/db";
 import { env } from "./config/env";
 import { startSlaJob } from "./jobs/slaEscalation.job";
+import { ensureDemoData } from "./modules/demo/demo.service";
 import { initSocket } from "./sockets";
 import { logger } from "./utils/logger";
 
@@ -18,6 +19,8 @@ async function start(): Promise<void> {
   server.listen(env.PORT, () => {
     logger.info(`ResolveX API running on port ${env.PORT} (${env.NODE_ENV})`);
     startSlaJob();
+    // Auto-seed demo data on startup if not already seeded
+    ensureDemoData().catch((err) => logger.warn("Failed to auto-seed demo data on startup", err));
   });
 
   // Graceful shutdown: finish in-flight requests, then close the DB.

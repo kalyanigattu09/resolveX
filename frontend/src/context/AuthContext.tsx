@@ -4,6 +4,7 @@ import { refreshSession, setAuthFailureHandler, tokenStore } from "../api/client
 import type { Role, User } from "../types";
 
 const DEMO_FLAG_KEY = "resolvex:isDemo";
+const DEMO_ROLE_KEY = "resolvex:demoRole";
 
 function readDemoFlag(): boolean {
   try {
@@ -13,10 +14,15 @@ function readDemoFlag(): boolean {
   }
 }
 
-function writeDemoFlag(active: boolean) {
+function writeDemoFlag(active: boolean, role?: Role) {
   try {
-    if (active) sessionStorage.setItem(DEMO_FLAG_KEY, "true");
-    else sessionStorage.removeItem(DEMO_FLAG_KEY);
+    if (active) {
+      sessionStorage.setItem(DEMO_FLAG_KEY, "true");
+      if (role) sessionStorage.setItem(DEMO_ROLE_KEY, role);
+    } else {
+      sessionStorage.removeItem(DEMO_FLAG_KEY);
+      sessionStorage.removeItem(DEMO_ROLE_KEY);
+    }
   } catch {}
 }
 
@@ -47,12 +53,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isDemo, setIsDemo] = useState(readDemoFlag);
 
   // On page load, try to restore the session from the httpOnly refresh cookie.
+  // If third-party cookies are blocked by the browser in cross-origin environments,
+  // silently restore demo mode if the user was exploring the demo.
   useEffect(() => {
     let cancelled = false;
-    refreshSession().then((session) => {
+    refreshSession().then(async (session) => {
       if (cancelled) return;
-      setUser(session?.user ?? null);
-      setLoading(false);
+      if (session) {
+        setUser(session.user);
+        setLoading(false);
+      } else if (readDemoFlag()) {
+        try {
+          const savedRole = (sessionStorage.getItem(DEMO_ROLE_KEY) as Role) || "ADMIN";
+          const data = await demoApi.login(savedRole);
+          if (!cancelled) {
+            tokenStore.set(data.accessToken);
+            setUser(data.user);
+            setIsDemo(true);
+          }
+        } catch {
+          if (!cancelled) setUser(null);
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      } else {
+        setUser(null);
+        setLoading(false);
+      }
     });
     setAuthFailureHandler(() => {
       tokenStore.set(null);
@@ -66,10 +93,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const accept = useCallback((data: { user: User; accessToken: string }, slug: string, demo = false) => {
+  const accept = useCallback((data: { user: User; accessToken: string }, slug: string, demo = false, role?: Role) => {
     tokenStore.set(data.accessToken);
     rememberOrg(slug);
-    writeDemoFlag(demo);
+    writeDemoFlag(demo, role);
     setIsDemo(demo);
     setUser(data.user);
     return data.user;
@@ -88,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const demoLogin = useCallback(async (role: Role) => {
     const data = await demoApi.login(role);
-    return accept(data, "demo-org", true);
+    return accept(data, "demo-org", true, role);
   }, [accept]);
 
   const demoReset = useCallback(async () => {
