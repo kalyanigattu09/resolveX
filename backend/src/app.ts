@@ -40,13 +40,11 @@ export function isAllowedOrigin(origin?: string): boolean {
     if (/^https?:\/\/localhost(:\d+)?$/.test(normalized)) return true;
   }
 
-  // Permit any Vercel domain if a vercel domain is listed in CLIENT_URL
-  if (allowed.some((u) => u.includes("vercel.app"))) {
-    try {
-      const parsed = new URL(normalized);
-      if (parsed.hostname.endsWith(".vercel.app")) return true;
-    } catch {}
-  }
+  // Automatically permit all Vercel domains (*.vercel.app)
+  try {
+    const parsed = new URL(normalized);
+    if (parsed.hostname.endsWith(".vercel.app") || parsed.hostname === "vercel.app") return true;
+  } catch {}
 
   return false;
 }
